@@ -1,3 +1,7 @@
+# This is a slight altered Version of the original from the coreos developers
+
+You can just start a 7 Node Cluster with ./startup.sh and it will spawn 7 Nodes a 512 MB of Ram each. The Discovery URL is automagically greped.
+
 # CoreOS Vagrant
 
 This repo provides a template Vagrantfile to create a CoreOS virtual machine using the VirtualBox software hypervisor.
