@@ -1,6 +1,6 @@
 # -*- mode: ruby -*-
 # # vi: set ft=ruby :
-
+require 'erb'
 require 'fileutils'
 
 Vagrant.require_version ">= 1.6.0"
@@ -9,12 +9,14 @@ CLOUD_CONFIG_PATH = File.join(File.dirname(__FILE__), "user-data")
 CONFIG = File.join(File.dirname(__FILE__), "config.rb")
 
 # Defaults for config options defined in CONFIG
-$num_instances = 1
+$num_instances = 3
 $update_channel = "alpha"
 $enable_serial_logging = false
 $vb_gui = false
 $vb_memory = 1024
 $vb_cpus = 1
+$expose_docker_tcp=2375
+TEMPLATE = File.join(File.dirname(__FILE__), "user-data.erb")
 
 # Attempt to apply the deprecated environment variable NUM_INSTANCES to
 # $num_instances while allowing config.rb to override it
@@ -49,6 +51,21 @@ Vagrant.configure("2") do |config|
 
   (1..$num_instances).each do |i|
     config.vm.define vm_name = "core-%02d" % i do |config|
+      ipaddr = "172.17.8.100"
+      ips = []
+      (1..$num_instances).each do |n|
+        temp = ipaddr.split('.').map(&:to_i)
+        temp[3] = temp[3] + n
+        ips << temp.join('.') + ":7001"
+      end
+      ips.delete("172.17.8.#{i+100}")
+      peer_addresses=ips.join(",")
+      if File.exists?(TEMPLATE)
+          user_data=ERB.new(IO.read(TEMPLATE)).result(binding).gsub(%r{^\s*$\n}, '')
+      else
+          raise ActionFailed, "Could not find Cloud-Config template #{TEMPLATE}"
+      end
+      File.open(File.join(File.dirname(__FILE__), "node%02d.yml" %i), "wb") { |f| f.write(user_data) }
       config.vm.hostname = vm_name
 
       if $enable_serial_logging
@@ -90,12 +107,8 @@ Vagrant.configure("2") do |config|
 
       # Uncomment below to enable NFS for sharing the host machine into the coreos-vagrant VM.
       #config.vm.synced_folder ".", "/home/core/share", id: "core", :nfs => true, :mount_options => ['nolock,vers=3,udp']
-
-      if File.exist?(CLOUD_CONFIG_PATH)
-        config.vm.provision :file, :source => "#{CLOUD_CONFIG_PATH}", :destination => "/tmp/vagrantfile-user-data"
-        config.vm.provision :shell, :inline => "mv /tmp/vagrantfile-user-data /var/lib/coreos-vagrant/", :privileged => true
-      end
-
+      config.vm.provision :file, :source => "node%02d.yml" %i, :destination => "/tmp/vagrantfile-user-data"
+      config.vm.provision :shell, :inline => "mv /tmp/vagrantfile-user-data /var/lib/coreos-vagrant/", :privileged => true
     end
   end
 end
