@@ -16,6 +16,8 @@ $vb_gui = false
 $vb_memory = 1024
 $vb_cpus = 1
 $expose_docker_tcp=2375
+$expose_etcd_tcp=4001
+$expose_fleet_tcp=7001
 TEMPLATE = File.join(File.dirname(__FILE__), "user-data.erb")
 
 # Attempt to apply the deprecated environment variable NUM_INSTANCES to
@@ -91,7 +93,10 @@ Vagrant.configure("2") do |config|
       if $expose_docker_tcp
         config.vm.network "forwarded_port", guest: 2375, host: ($expose_docker_tcp + i - 1), auto_correct: true
       end
-
+      if $expose_etcd_tcp
+        config.vm.network "forwarded_port", guest: 4001, host: ($expose_etcd_tcp + i - 1), auto_correct: true
+        config.vm.network "forwarded_port", guest: 7001, host: ($expose_fleet_tcp + i - 1), auto_correct: true
+      end
       config.vm.provider :vmware_fusion do |vb|
         vb.gui = $vb_gui
       end
